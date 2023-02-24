@@ -5,7 +5,7 @@ Predicting the success of an Airbnb listing is crucial to *mitigate risk* when e
 - **Mitigating risk**: when entering the market with a new property, hosts will tend to experiment with pricing strategies, perhaps never finding the optimum. Predicting success ahead of time can give foresight into the optimal pricing strategy, allowing hosts to reduce experimentation time.
 - **Maximising profit**: not knowing the success potential or appropriate pricing strategy for a property could reduce profits, either by pricing too low and reducing profit margins, pricing too high and losing business, or by developing properties in lower potential areas (e.g. investing in central heating may be wasted overhead if it does not increase the likelihood or degree of success enough).
 
-Relying on structured data for this prediction is unduly trusting of data collectors and maintainers -- will they be accurate, will they be precise, will they be consistent? It is potential perilous to trust long-term predictive capability in the continuing accuracy and availability of structured data. (Ge and Harfield, 2007; Moreno, 2017; Battaglia et al., 2010)
+Relying on structured data for this prediction is unduly trusting of data collectors and maintainers -- will they be accurate, will they be precise, will they be consistent? It is potentially perilous to trust long-term predictive capability in the continuing accuracy and availability of structured data. (Ge and Harfield, 2007; Moreno, 2017; Battaglia et al., 2010)
 
 Airbnb listings contain an abundance of unstructured data with huge potential for machine learning models -- listing images, property descriptions, user reviews, etc.
 
@@ -41,9 +41,11 @@ The probability $p$ that a property is booked out on any given day is difficult 
 The average review sentiment $s_\mu$ can be interpreted in several ways. Most easily, we could determine the sentiment of all reviews and find the mean sentiment. This might be too simplistic for our problem, in which we have properties that may have undergone significant change over time or listings that have a noteworthy trend in their reviews over time (e.g. increasingly negative). A more considerate approach, then, is to take a weighted average, with greater weight being given to more recent reviews (we might fix the weighting by time, or we may rank reviews by recency and weigh them in proportion). 
 
 With this considered, we further specify:
+
 $$
 S=\frac{p\ln(r)}{|R|}\cdot\sum_{s\in R}s\cdot w(s)
 $$
+
 where $R$ is the set of reviews and $w(s)$ is a function specifying the appropriate weight for a given review sentiment $s$ (determined with respect to the recency of $s$).
 
 ### Sentiment Analysis on Raw Textual Data
