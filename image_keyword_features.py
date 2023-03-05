@@ -3,11 +3,13 @@ import pandas as pd
 import numpy as np
 import random
 import os
+import ast
+from textblob import TextBlob
 
 import image_labels
 
 # Primary function for creating the dictionaries of extracted keywords (with their confidence levels).
-def keyword_extraction(listing_directory, destination_directory, city_name=None, picture_limit=3, confidence_threshold=0.99, overwrite=False):
+def keyword_extraction(listing_directory, destination_directory, city_name=None, picture_limit=3, confidence_threshold=0, overwrite=False):
     '''
     This function generates a list of keywords and their associated confidence levels for each listing.
 
@@ -106,3 +108,36 @@ def keyword_extraction(listing_directory, destination_directory, city_name=None,
             new_entry = pd.DataFrame({'id' : [id], 'keywords' : np.NaN, 'confidences' : np.NaN})
 
             new_entry.to_csv('{}/image_keywords_{}.csv'.format(destination_directory, city_name), mode='a', header=False, index=False)
+
+
+# Function for computing the sentiment of listing images based on their extracted keywords.
+def compute_image_sentiments(keyword_directory):
+    '''
+    This function will compute the mean (and standard deviation) sentiment for lists of keywords (and confidences).
+    In each listing, each extracted keyword will be analysised for sentiment, and each sentiment will be scaled by the confidence score.
+    The return will be a dataframe with columns 'id', 'mean_sentiment', and 'std_sentiment', and 'extracted_count'.
+    
+    keyword_directory should be a path to the image_keywords.csv containing keywords and sentiments for a list of ids.
+    '''
+
+    # Get the keyword data.
+    data = pd.read_csv(keyword_directory).dropna()
+    
+    # New dataframe for resutls.
+    results = pd.DataFrame(columns=['id', 'mean_sentiment', 'std_sentiment', 'extraction_count'])
+
+    for i in range(len(data.index)):
+        entry = data.iloc[i]
+
+        keywords = ast.literal_eval(entry.keywords)
+        confidences = ast.literal_eval(entry.confindences)
+
+        # Compute the sentiment scores for the entry's extracted keywords.
+        sentiments = []
+        for j in range(len(keywords)):
+            score = TextBlob(keywords[j]).sentiment.polarity * (confidences[j] / 100)
+            sentiments.append(score)
+
+        results.loc[i] = [entry.id, np.mean(sentiments), np.std(sentiments), len(sentiments)]
+
+    return results
