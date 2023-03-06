@@ -79,6 +79,45 @@ def city_data_generation(city, datasets_directory, latest_date=datetime.now(), a
     master_data.to_csv('{}/master_{}.csv'.format(datasets_directory, city))
 
 
+#Function for counting keyword occurences.
+def count_keyword_occurences(keyword_directory):
+    '''
+    This function will simply count how many times each keyword is extracted using the given directory.
+    It will also return a 'weighted' count, where we weigh the count by how confident we are about each occurence.
+    e.g. if we are 30% confident about "apple" in one listing, and 80$ in another, then the count is 2 and the weighted count is 1.1.
+
+    keyword_directory is expected to be the path to the image_keywords.csv file, containing 
+
+    The return will be a dictionary of the form {keyword : (count, weighted count)}.
+    '''
+
+    # Read in the keyword data.
+    keyword_data = pd.read_csv(keyword_directory).dropna()
+
+    keyword_counts = {}
+
+    # Loop through each entry...
+    for i in range(len(keyword_data.id)):
+        entry = keyword_data.iloc[i]
+
+        # Convert the keyword and confidence objects to usable lists of strings and floats.
+        keywords = ast.literal_eval(entry.keywords)
+        confidences = ast.literal_eval(entry.confindences)
+
+        # Loop through each keyword in the entry...
+        for j in range(len(keywords)):
+            if keywords[j] in keyword_counts.keys():
+                keyword_counts[keywords[j]] = (
+                    keyword_counts[keywords[j]][0] + 1,
+                    keyword_counts[keywords[j]][1] + (confidences[j] / 100)
+                )
+
+            else:
+                keyword_counts[keywords[j]] = (1, confidences[j] / 100)
+
+    return keyword_counts
+
+
 # Function for computing mean success scores for keywords
 def mean_keyword_scores(success_scores, keyword_directory):
     '''
