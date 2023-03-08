@@ -6,6 +6,8 @@ import ast
 
 import success_metric as sm
 import nlp_features as nlp
+import miscellaneous_helpers as mh
+
 
 # Primary function for creating data for a given city.
 def city_data_generation(city, datasets_directory, latest_date=datetime.now(), add_image_keywords=False):
@@ -57,8 +59,8 @@ def city_data_generation(city, datasets_directory, latest_date=datetime.now(), a
     ], axis=1, inplace=True)
 
     # Generate success scores and NLP features.
-    success_scores = sm.compute_scores(listings_directory, reviews_directory, latest_date=latest_date)
-    nlp_features = nlp.create_features(listings_directory)
+    success_scores = sm.compute_scores(listings_directory)
+    nlp_features = nlp.create_features(listings_directory, reviews_directory, latest_date=latest_date)
 
     # Merge the raw_data with the NLP features, retaining all listings.
     master_data = raw_data.merge(nlp_features, on='id', how='outer')
