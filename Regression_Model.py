@@ -9,6 +9,7 @@ from sklearn import linear_model
 import create_data
 from sklearn.model_selection import KFold
 import sklearn.metrics as metrics
+import ast
 
 # Helper function for converting dates to days since. Directly copied from model_comparisons.ipynb
 def elapsed_days(from_date_as_string, to_date=datetime(2022, 12, 16)):
@@ -36,14 +37,22 @@ def pre_process(city):
     master_data = pd.read_csv('datasets/master_{}.csv'.format(city)).iloc[:,2:]
         
         
-    # Remove all data used to generate success scores.
+    # We will be predicting success so, it would only be fair for us to remove all data used to generate success scores.
     master_data.drop(columns=[
-        'price',
+        'price', 
         'minimum_nights_avg_ntm', 
-        'number_of_reviews_ltm',
-        'log_price', 
-        'rental_probability',
-        'weighted_average_sentiment'
+        'number_of_reviews_ltm', 
+        'review_scores_rating'
+    ], inplace=True, axis=1)
+
+    # It would also be in the spirit of things to remove other review scores (e.g. for cleanliness), as that is sort of cheating.
+    master_data.drop(columns=[
+        'review_scores_accuracy', 
+        'review_scores_cleanliness',
+        'review_scores_checkin', 
+        'review_scores_communication',
+        'review_scores_location', 
+        'review_scores_value'
     ], inplace=True, axis=1)
     
     
@@ -59,7 +68,6 @@ def pre_process(city):
     
     # Remove unhelpful features (for prediction of success).
     master_data.drop(columns=[
-        'id',
         'host_id',
         'neighbourhood',
         'neighbourhood_cleansed',
@@ -88,7 +96,7 @@ def pre_process(city):
     master_data.drop(columns=[
         'has_availability',
         'host_has_profile_pic'
-    ])
+    ], inplace=True, axis=1)
 
     
     # Convert pseudonumeric types (e.g. dates) to numeric...
@@ -121,19 +129,19 @@ def pre_process(city):
     
     
     # Replace missing polarity and subjectivity scores with 0 (i.e. neutral and factual).
-    features = [master_data.host_about_polarity, master_data.host_about_subjectivity, 
-                master_data.neighborhood_overview_polarity, 
-                master_data.neighborhood_overview_subjectivity, master_data.description_polarity,
-                master_data.description_subjectivity]
-    for feature in features:
-        feature = feature.fillna(0)
-        
-        
-    # Replace missing host_response_rate and host_acceptance_rate with mean values.
-    host_features= [master_data.host_response_rate, master_data.host_acceptance_rate]
-    
-    for feature in host_features:
-        feature=feature.fillna(feature.mean())
+    master_data.host_about_polarity = master_data.host_about_polarity.fillna(0)
+    master_data.host_about_subjectivity = master_data.host_about_subjectivity.fillna(0)
+    master_data.neighborhood_overview_polarity = master_data.neighborhood_overview_polarity.fillna(0)
+    master_data.neighborhood_overview_subjectivity = master_data.neighborhood_overview_subjectivity.fillna(0)
+    master_data.description_polarity = master_data.description_polarity.fillna(0)
+    master_data.description_subjectivity = master_data.description_subjectivity.fillna(0)
+
+    # Replace missing host_response_rate, host_acceptance_rate with mean values.
+    master_data.host_response_rate = master_data.host_response_rate.fillna(master_data.host_response_rate.mean())
+    master_data.host_acceptance_rate = master_data.host_acceptance_rate.fillna(master_data.host_acceptance_rate.mean()) 
+
+    # Replace missing host_response_time with mode values.
+    master_data.host_response_time = master_data.host_response_time.fillna(master_data.host_response_time.mode().values[0])
         
         
     # Remove all rows with missing values still remaining.
@@ -185,8 +193,40 @@ def pre_process(city):
 
     # Don't worry about skewness with the success scores.
     skewness.success_score = 0
+
+
+    # Calcualte the success of the image keywords.
+    keyword_success = create_data.mean_keyword_scores(master_data[['id', 'success_score']], 'datasets/image_keywords_edinburgh.csv')
     
-    
+    # For each listing, compute the mean and standard deviation in the perceived success of image keywords.
+    weighted_image_score_mean = []
+    weighted_image_score_max = []
+    weighted_image_score_min = []
+    weighted_image_score_std = []
+
+    for i in range(len(master_data.index)):
+        entry = master_data.iloc[i]
+
+        keywords = ast.literal_eval(entry.images_keywords)
+        confidences = ast.literal_eval(entry.images_confidences)
+
+        scores = []
+        for j in range(len(keywords)):
+            scores.append(keyword_success[keywords[j]] * (confidences[j] / 100)) 
+
+        weighted_image_score_mean.append(np.mean(scores))
+        weighted_image_score_max.append(max(scores))
+        weighted_image_score_min.append(min(scores))
+        weighted_image_score_std.append(np.std(scores))
+
+    master_data['weighted_image_score_mean'] = weighted_image_score_mean
+    master_data['weighted_image_score_max'] = weighted_image_score_max
+    master_data['weighted_image_score_min'] = weighted_image_score_min
+    master_data['weighted_image_score_std'] = weighted_image_score_std
+
+    # Drop image keywords and confidences, now that we have used them.
+    master_data = master_data.drop(columns=['images_keywords', 'images_confidences'], axis=1)
+
     # Convert categorical (e.g. boolean) types to numeric...
 
     master_data.host_response_time = master_data.host_response_time.map(
@@ -197,20 +237,12 @@ def pre_process(city):
         lambda x : {'t' : 1, 'f' : 0}.get(x, 0)
     )
 
-    master_data.host_has_profile_pic = master_data.host_has_profile_pic.map(
-        lambda x : {'t' : 1, 'f' : 0}.get(x, 0)
-    )
-
     master_data.host_identity_verified = master_data.host_identity_verified.map(
         lambda x : {'t' : 1, 'f' : 0}.get(x, 0)
     )
 
     master_data.room_type = master_data.room_type.map(
         lambda x : {'Entire home/apt' : 1, 'Private room' : 2, 'Hotel room' : 3, 'Shared room' : 4}.get(x, 0)
-    )
-
-    master_data.has_availability = master_data.has_availability.map(
-        lambda x : {'t' : 1, 'f' : 0}.get(x, 0)
     )
 
     master_data.instant_bookable = master_data.instant_bookable.map(
@@ -231,25 +263,54 @@ def create_subsets(data, raw_data=True, text_data=True):
     '''
     
     if raw_data == True:
-        raw_data = data.drop(columns=['title_polarity', 
-                                    'title_subjectivity', 
-                                    'description_polarity',
-                                    'description_subjectivity', 
-                                    'neighborhood_overview_polarity',
-                                    'neighborhood_overview_subjectivity', 
-                                    'host_about_polarity',
-                                    'host_about_subjectivity'
-                                    ], axis=1)
+        # Given structured data.
+        raw_data = data[[
+            'host_since', 
+            'host_response_time', 
+            'host_response_rate',
+            'host_acceptance_rate', 
+            'host_is_superhost', 
+            'host_listings_count',
+            'host_total_listings_count', 
+            'host_verifications',
+            'host_identity_verified', 
+            'room_type', 
+            'accommodates', 
+            'bedrooms',
+            'beds', 
+            'minimum_nights', 
+            'maximum_nights', 
+            'availability_30',
+            'availability_60', 
+            'availability_90', 
+            'availability_365',
+            'number_of_reviews', 
+            'number_of_reviews_l30d', 
+            'first_review',
+            'last_review', 
+            'instant_bookable', 
+            'reviews_per_month',
+        ]]
         
     if text_data == True:
-        text_data = data[['title_polarity', 
-                          'title_subjectivity', 
-                          'description_polarity',
-                          'description_subjectivity', 
-                          'neighborhood_overview_polarity',
-                          'neighborhood_overview_subjectivity', 
-                          'host_about_polarity',
-                          'host_about_subjectivity']]
+        # Inferred features from unstructured data.
+        text_data = data[[
+            'title_polarity', 
+            #'title_subjectivity', 
+            'description_polarity',
+            #'description_subjectivity', 
+            'neighborhood_overview_polarity',
+            #'neighborhood_overview_subjectivity', 
+            'host_about_polarity',
+            #'host_about_subjectivity', 
+            'perceived_review_sentiment',
+            'min_review_sentiment', 
+            'max_review_sentiment', 
+            'weighted_image_score_mean', 
+            'weighted_image_score_max',
+            'weighted_image_score_min', 
+            'weighted_image_score_std'
+        ]]
         
     return raw_data, text_data
 
@@ -300,4 +361,3 @@ def predictive_model(data, masterdata, n=10):
     print ('The average mean absolute error is ', np.mean(MAE))
     print ('The correlation between the predicted and actual success: is ', np.mean(coeff))
     return RMSE, MAE, coeff
-
