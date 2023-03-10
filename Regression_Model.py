@@ -26,7 +26,7 @@ def pre_process(city):
     
     # Create master data if not already created.
     if not Path('datasets/master_{}.csv'.format(city)).is_file():
-        create_data.city_data_generation('city', 'datasets', datetime(2022, 12, 16))
+        create_data.city_data_generation(city, 'datasets', datetime(2022, 12, 16))
         print('Master data file generated.')
     else:
         print('Pre-existing master data file found (no new data created).')
