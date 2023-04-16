@@ -4,6 +4,9 @@ The large majority of the exploration of our three RQs can be found in `testing.
 
 In the section of `testing.ipynb` entitled *Miscellaneous Fun*, we walk through the data preprocessing step, create necessary features, and then go about answering RQ1. RQ2 and RQ3 are still in the works, and they are explored in `Predictive_Model_Examples.ipynb`.
 
+## In Progress Developments
+We are currently looking to clean up the running of this project by collecting all experiments into a single notebook -- `experiments.ipynb`. The runnning of the experiments themselves, and the handling of the data (e.g. preprocessing, file reading, etc.), is then to be abstracted into classes of the `RQs.py` script.
+
 # What Are the Scripts For?
 
 There are a variety of Python scripts where common methods are grouped together, usually in line with how they are discussed in the supporting literature so as to keep things nicely encapsulated and abstracted.
