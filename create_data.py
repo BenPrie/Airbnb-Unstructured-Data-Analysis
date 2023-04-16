@@ -11,6 +11,7 @@ import miscellaneous_helpers as mh
 
 # Primary function for creating data for a given city.
 def city_data_generation(city, datasets_directory, latest_date=datetime.now(), add_image_keywords=False):
+
     '''
     To use this function, we assume the naming convention '{"listing"/"reviews"}_{city name}.csv'
 
@@ -60,7 +61,7 @@ def city_data_generation(city, datasets_directory, latest_date=datetime.now(), a
 
     # Generate success scores and NLP features.
     success_scores = sm.compute_scores(listings_directory)
-    nlp_features = nlp.create_features(listings_directory, reviews_directory, latest_date=latest_date)
+    nlp_features = nlp.create_features_revised(listings_directory, reviews_directory, latest_date=latest_date)
 
     # Merge the raw_data with the NLP features, retaining all listings.
     master_data = raw_data.merge(nlp_features, on='id', how='outer')
