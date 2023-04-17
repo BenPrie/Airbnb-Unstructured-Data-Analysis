@@ -5,7 +5,7 @@ import numpy as np
 import ast
 from pathlib import Path
 
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 from sklearn.model_selection import train_test_split
@@ -329,7 +329,7 @@ class DataHandler():
         # NORMALISATION:
 
         # Create the scaler object
-        scaler = MinMaxScaler()
+        scaler = StandardScaler()
 
         # Normalise the data
         data_to_normalise = self.master_data.drop(columns=['images_keywords', 'images_confidences'], axis=1)
