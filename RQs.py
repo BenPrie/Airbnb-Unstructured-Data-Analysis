@@ -396,7 +396,7 @@ class RQ1():
                 'Unsuccessful Skew' : [less_sample.skew()], 
                 'Successful Skew' : [more_sample.skew()],
                 'p-value' : [p_value], 
-                'Rejection Decision' : [p_value < sig_level]
+                'Rejection Decision' : [p_value < sig_level or p_value > 1 - sig_level]
             })
 
             results = pd.concat([results, feature_results])
