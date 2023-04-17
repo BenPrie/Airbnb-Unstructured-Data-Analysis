@@ -5,6 +5,8 @@ import numpy as np
 import ast
 from pathlib import Path
 
+from scipy.stats import ttest_ind
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
@@ -23,7 +25,7 @@ import success_metric as sm
 import nlp_features as nlp
 import miscellaneous_helpers as mh
 
-# A data handling class that will manage the dataframes, conduct PCA and preprocessing, etc.
+# A data handling class that will manage the dataframes, preprocessing, etc.
 class DataHandler():
 
     def __init__(self, city, datasets_directory, latest_date=datetime.now()):
@@ -341,8 +343,71 @@ class DataHandler():
         return self.normalised_data
 
 
+class RQ1():
+
+    def __init__(self, normalised_data, threshold=0.5):
+        # We take the bottom and top {threshold}% when considered unsuccessful and successful listings.
+        threshold = min(abs(threshold), 0.5)
+        self.unsuccessful_data = normalised_data[normalised_data.success_score < normalised_data.success_score.quantile(threshold)]
+        self.successful_data = normalised_data[normalised_data.success_score > normalised_data.success_score.quantile(1 - threshold)]
+
+
+    def get_data_split(self):
+        return self.unsuccessful_data, self.successful_data
+
+
+    # Main method for running the experiment.
+    def run (self, features_to_consider, sig_level=0.01):
+        results = pd.DataFrame(columns=[
+            'Feature', 
+            'No. Unsuccessful', 
+            'No. Successful', 
+            'Unsuccessful Mean', 
+            'Successful Mean',
+            'Unsuccessful Std', 
+            'Successful Std',
+            'Unsuccessful Skew', 
+            'Successful Skew',
+            'p-value', 
+            'Rejection Decision'
+        ])
+
+        for feature in features_to_consider:
+            less_sample = self.unsuccessful_data[feature]
+            more_sample = self.successful_data[feature]
+
+            _, double_p = ttest_ind(more_sample, less_sample, equal_var=False)
+
+            if np.mean(more_sample) > np.mean(less_sample):
+                p_value = double_p / 2
+
+            else:
+                p_value = 1 - (double_p / 2)
+
+            # Append the results.
+            feature_results = pd.DataFrame({
+                'Feature' : [feature], 
+                'No. Unsuccessful' : [len(less_sample)], 
+                'No. Successful' : [len(more_sample)], 
+                'Unsuccessful Mean' : [np.mean(less_sample)], 
+                'Successful Mean' : [np.mean(more_sample)],
+                'Unsuccessful Std' : [np.std(less_sample)], 
+                'Successful Std' : [np.std(more_sample)],
+                'Unsuccessful Skew' : [less_sample.skew()], 
+                'Successful Skew' : [more_sample.skew()],
+                'p-value' : [p_value], 
+                'Rejection Decision' : [p_value < sig_level]
+            })
+
+            results = pd.concat([results, feature_results])
+
+        return results
+
+            
+
+
 # Class for conducting RQ3.
-class RQ3:
+class RQ3():
 
     def __init__(self, normalised_data, structured_features, unstructured_features, hybrid_features, pca=True, threshold_explained_variance=0.9):
         self.normalised_data = normalised_data
@@ -394,14 +459,15 @@ class RQ3:
         multilayer_perceptron=True,
         gaussian_process_regression=True,
         decision_tree_regression=True,
-        random_forest_regression=True
+        random_forest_regression=True,
+        seed=1
     ):
         results = pd.DataFrame(columns=['Model', 'Dataset', 'MAE', 'MSE', 'R2 Score'])
 
         # Train-test split for each dataset.
-        X_struct_train, X_struct_test, y_struct_train, y_struct_test = train_test_split(self.X_struct, self.y, test_size=0.2)
-        X_unstruct_train, X_unstruct_test, y_unstruct_train, y_unstruct_test = train_test_split(self.X_unstruct, self.y, test_size=0.2)
-        X_hybrid_train, X_hybrid_test, y_hybrid_train, y_hybrid_test = train_test_split(self.X_hybrid, self.y, test_size=0.2)
+        X_struct_train, X_struct_test, y_struct_train, y_struct_test = train_test_split(self.X_struct, self.y, test_size=0.2, random_state=seed)
+        X_unstruct_train, X_unstruct_test, y_unstruct_train, y_unstruct_test = train_test_split(self.X_unstruct, self.y, test_size=0.2, random_state=seed)
+        X_hybrid_train, X_hybrid_test, y_hybrid_train, y_hybrid_test = train_test_split(self.X_hybrid, self.y, test_size=0.2, random_state=seed)
 
         if linear_regression:
             lin_reg_struct = LinearRegression().fit(X_struct_train, y_struct_train)
